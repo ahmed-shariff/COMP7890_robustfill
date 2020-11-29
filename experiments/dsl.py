@@ -2,6 +2,7 @@ from enum import Enum, auto
 from string import ascii_letters, digits, whitespace
 import re
 import unicodedata
+import random
 
 # Defning the base parameter values that can be passed to an expression
 class Boundry(Enum):
@@ -26,16 +27,21 @@ class Type(Enum):
     CHAR = auto()
 
 
-Position = list(range(-100, 101))
-Index = list(range(-5, 5))
-Delimiter_names = ["AMPERSAND", "COMMA", "FULL STOP", "QUESTION MARK", "EXCLAMATION MARK",
+
+TYPE = list(Type)
+CASE = list(Case)
+BOUNDRY = list(Boundry)
+POSITION = list(range(-100, 101))
+INDEX = list(range(-5, 5))
+DELIMITER_NAMES = ["AMPERSAND", "COMMA", "FULL STOP", "QUESTION MARK", "EXCLAMATION MARK",
                    "COMMERCIAL AT", "LEFT PARENTHESIS", "RIGHT PARENTHESIS", "LEFT SQUARE BRACKET",
                    "RIGHT SQUARE BRACKET", "PERCENT SIGN", "LEFT CURLY BRACKET",
                    "RIGHT CURLY BRACKET", "SOLIDUS", "COLON", "SEMICOLON", "DOLLAR SIGN",
                    "NUMBER SIGN", "REVERSE SOLIDUS", "RIGHT DOUBLE QUOTATION MARK", "APOSTROPHE",
                    "SPACE", "HORIZONTAL TABULATION", "LINE FEED", "CARRIAGE RETURN"]
-Delimiter = [unicodedata.lookup(name) for name in Delimiter_names]
-Character = list(ascii_letters) + list(digits) + Delimiter
+DELIMITER = [unicodedata.lookup(name) for name in DELIMITER_NAMES]
+CHARACTER = list(ascii_letters) + list(digits) + DELIMITER
+REGEX = DELIMITER + TYPE
 
 class Expression:
     def __init__(self):
@@ -46,6 +52,13 @@ class Expression:
 
 
 class Concat(Expression):
+    @staticmethod
+    def self_initialize():
+        expressions = []
+        for _ in range(random.randint(0, 10)):
+            expressions.append(random.choice(EXPRESSIONS).self_initialize())
+        return Concat(expressions)
+
     def __init__(self, *expressions):
         self.experssions = expressions
 
@@ -54,6 +67,10 @@ class Concat(Expression):
 
 
 class ConstStr(Expression):
+    @staticmethod
+    def self_initialize():
+        return ConstStr(random.choice(CHARACTER))
+    
     def __init__(self, c):
         self.c = c
 
@@ -62,12 +79,21 @@ class ConstStr(Expression):
 
 
 class SubString(Expression):
+    @staticmethod
+    def self_initialize():
+        while True:
+            try:
+                return SubString(random.choice(POSITION), random.choice(POSITION))
+            except AssertionError:
+                pass
+
     def __init__(self, k1, k2):
         self.k1 = k1
         self.k2 = k2
+        assert k1 < k2
 
     def __call__(self, v):
-        return v[k1:k2]
+        return v[self.k1: self.k2]
 
 
 class _GetTypeMatches(Expression):
@@ -89,7 +115,7 @@ class _GetTypeMatches(Expression):
         elif t == Type.CHAR:
             regex_str = '[A-Za-z0-9]'
         elif isinstance(t, str):
-            regex_str = t
+            regex_str = re.escape(t)
 
         self.regex_matcher = re.compile(regex_str)
 
@@ -98,6 +124,11 @@ class _GetTypeMatches(Expression):
 
     
 class GetSpan(Expression):
+    @staticmethod
+    def self_initialize():
+        return GetSpan(random.choice(REGEX), random.choice(INDEX), random.choice(BOUNDRY),
+                       random.choice(REGEX), random.choice(INDEX), random.choice(BOUNDRY))
+    
     def __init__(self, r1, i1, y1, r2, i2, y2):
         self.matcher1 = _GetTypeMatches(r1)
         self.i1 = i1
@@ -123,6 +154,11 @@ class GetSpan(Expression):
         
     
 class Nesting(Expression):
+    @staticmethod
+    def self_initialize():
+        return Nesting(random.choice(NESTING_EXPRESSIONS).self_initialize(),
+                       random.choice(NESTING_EXPRESSIONS + SUBSTRING_EXPRESSIONS).self_initialize())
+
     def __init__(self, parent, child):
         self.parent = parent
         self.child = child
@@ -132,6 +168,10 @@ class Nesting(Expression):
     
     
 class GetToken(Expression):
+    @staticmethod
+    def self_initialize():
+        return GetToken(random.choice(TYPE), random.choice(INDEX))
+
     def __init__(self, t, i):
         self.matcher = _GetTypeMatches(t)
         self.i = i
@@ -142,6 +182,10 @@ class GetToken(Expression):
 
 
 class ToCase(Expression):
+    @staticmethod
+    def self_initialize():
+        return ToCase(random.choice(CASE))
+
     def __init__(self, case):
         self.case = case
 
@@ -157,6 +201,10 @@ class ToCase(Expression):
 
 
 class Replace(Expression):
+    @staticmethod
+    def self_initialize():
+        return Replace(random.choice(DELIMITER), random.choice(DELIMITER))
+
     def __init__(self, f, t):
         self.f = f
         self.t = t
@@ -166,22 +214,34 @@ class Replace(Expression):
 
 
 class Trim(Expression):
+    @staticmethod
+    def self_initialize():
+        return Trim()
+
     def __call__(self, v):
         return v.strip()
 
 
 class GetUpTo(Expression):
+    @staticmethod
+    def self_initialize():
+        return GetUpTo(random.choice(REGEX), random.choice(INDEX))
+
     def __init__(self, r, i):
         self.matcher = _GetTypeMatches(r)
         self.i = i        
 
     def __call__(self, v):
+        print(v, self.i, self.matcher.regex_matcher)
         match_result = self.matcher(v)[self.i]
         return v[:match_result.end()]
 
 
-# GetFrom(r)| GetFirst(t, i) | GetAll(t)
 class GetFrom(Expression):
+    @staticmethod
+    def self_initialize():
+        return GetFrom(random.choice(REGEX), random.choice(INDEX))
+
     def __init__(self, r, i):
         self.matcher = _GetTypeMatches(r)
         self.i = i        
@@ -192,6 +252,10 @@ class GetFrom(Expression):
 
 
 class GetFirst(Expression):
+    @staticmethod
+    def self_initialize():
+        return GetFirst(random.choice(REGEX), random.choice(INDEX))
+
     def __init__(self, r, i):
         self.matcher = _GetTypeMatches(r)
         self.i = i        
@@ -202,6 +266,10 @@ class GetFirst(Expression):
 
 
 class GetAll(Expression):
+    @staticmethod
+    def self_initialize():
+        return GetAll(random.choice(REGEX))
+
     def __init__(self, r):
         self.matcher = _GetTypeMatches(r)
 
@@ -209,20 +277,46 @@ class GetAll(Expression):
         match_results = self.matcher(v)
         return "".join([v[match_result.start(): match_result.end()] for match_result in match_results])
 
+
+EXPRESSIONS = [ConstStr,
+               SubString,
+               GetSpan,
+               Nesting,
+               GetToken,
+               ToCase,
+               Replace,
+               Trim,
+               GetUpTo,
+               GetFrom,
+               GetFirst,
+               GetAll]
+
+NESTING_EXPRESSIONS = [GetToken,
+                       ToCase,
+                       Replace,
+                       Trim,
+                       GetUpTo,
+                       GetFrom,
+                       GetFirst,
+                       GetAll]
+
+SUBSTRING_EXPRESSIONS = [SubString,
+                         GetSpan]
+    
     
 if __name__=="__main__":
-    print(list(Boundry))
-    print(list(Case))
-    print(list(Position))
-    print(list(Index))
-    print(list(Delimiter))
-    print(list(Character))
-    print(len(list(Boundry) +
-              list(Case)   +
-              list(Position) +
-              list(Index) +
-              list(Delimiter)+
-              list(Character)))
+    print(list(BOUNDRY))
+    print(list(CASE))
+    print(list(POSITION))
+    print(list(INDEX))
+    print(list(DELIMITER))
+    print(list(CHARACTER))
+    print(len(list(BOUNDRY) +
+              list(CASE)   +
+              list(POSITION) +
+              list(INDEX) +
+              list(DELIMITER)+
+              list(CHARACTER)))
     print(_GetTypeMatches(Type.CHAR)(" asdf ks 12 44 ; sdf"))
     print(_GetTypeMatches(";")(" asdf ks 12 44 ; sdf"))
     print(GetToken(Type.WORD, 2)(" asdf ks 12 44 ; sdf"))
@@ -231,3 +325,44 @@ if __name__=="__main__":
     print(GetFrom(Type.DIGIT, 3)(" asdf ks 12 44 ; sdf"))
     print(GetFirst(Type.WORD, 2)(" asdf ks 12 44 ; sdf"))
     print(GetToken(Type.WORD, 2).__dict__)
+    print(ConstStr.self_initialize()(" asdf ks 12 44 ; sdf"))
+    print(SubString.self_initialize()(" asdf ks 12 44 ; sdf"))
+    try:
+        print(GetSpan.self_initialize()(" asdf ks 12 44 ; sdf asdf ks 12 44 ; sdf asdf ks 12 44 ; sdf asdf ks 12 44 ; sdf asdf ks 12 44 ; sdf"))
+    except IndexError as e:
+        print(e)
+    try:
+        print(GetToken.self_initialize()(" asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf"))
+    except IndexError as e:
+        print(e)
+    try:
+        print(ToCase.self_initialize()(" asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf"))
+    except IndexError as e:
+        print(e)
+    try:
+        print(Replace.self_initialize()(" asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf"))
+    except IndexError as e:
+        print(e)
+    try:
+        print(GetUpTo.self_initialize()(" asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf"))
+    except IndexError as e:
+        print(e)
+    try:
+        print(GetFrom.self_initialize()(" asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf"))
+    except IndexError as e:
+        print(e)
+    try:
+        print(GetFirst.self_initialize()(" asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf"))
+    except IndexError as e:
+        print(e)
+    try:
+        print(GetAll.self_initialize()(" asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf"))
+    except IndexError as e:
+        print(e)
+    try:
+        print(Nesting.self_initialize()(" asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf  asdf ks 12 44 ; sdf"))
+    except IndexError as e:
+        print(e)
+    
+
+    print(Concat.self_initialize().experssions)
