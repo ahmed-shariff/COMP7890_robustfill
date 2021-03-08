@@ -1,0 +1,3 @@
+[submodule "ProgramSynthNLP"]
+	path = ProgramSynthNLP
+	url = https://github.com/antaranin/ProgramSynthNLP.git
